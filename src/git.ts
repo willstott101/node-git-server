@@ -149,7 +149,7 @@ export class Git<T = any> extends EventEmitter implements GitEvents<T> {
    * @param  repoDir   - Create a new repository collection from the directory `repoDir`. `repoDir` should be entirely empty except for git repo directories. If `repoDir` is a function, `repoDir(repo)` will be used to dynamically resolve project directories. The return value of `repoDir(repo)` should be a string path specifying where to put the string `repo`. Make sure to return the same value for `repo` every time since `repoDir(repo)` will be called multiple times.
    * @param  options - options that can be applied on the new instance being created
    * @param  options.autoCreate - By default, repository targets will be created if they don't exist. You can
-   disable that behavior with `options.autoCreate = true`
+   disable that behavior with `options.autoCreate = false`
    * @param  options.authenticate - an optionally async function that has the following arguments ({ type, repo, getUser, headers }) and will be called when a request comes through, if set.
    *
      authenticate: async ({ type, repo, getUser, headers }) => {
@@ -229,9 +229,14 @@ export class Git<T = any> extends EventEmitter implements GitEvents<T> {
     fs.mkdirSync(path.dirname(dir), { recursive: true });
   }
   /**
-   * Create a new bare repository `repoName` in the instance repository directory.
+   * Create a new repository `repoName` in the instance repository directory.
+   *
+   * The created repository will:
+   * - be completely empty (have no commits or branches)
+   * - be a bare repo if `checkout` is false
+   *
    * @param  repo - the name of the repo
-   * @param  callback - Optionally get a callback `cb(err)` to be notified when the repository was created.
+   * @param  callback - a callback notified once creation has completed
    */
   create(repo: string, callback: (error?: Error) => void) {
     const next = () => {
@@ -251,7 +256,7 @@ export class Git<T = any> extends EventEmitter implements GitEvents<T> {
       });
 
       ps.on('exit', (code) => {
-        if (!callback) {
+        if (typeof callback !== 'function') {
           return;
         } else if (code) {
           callback(new Error(_error));
@@ -260,11 +265,6 @@ export class Git<T = any> extends EventEmitter implements GitEvents<T> {
         }
       });
     };
-
-    if (typeof callback !== 'function')
-      callback = () => {
-        return;
-      };
 
     if (!/\.git$/.test(repo)) repo += '.git';
 
